@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 
@@ -20,7 +21,7 @@ public class RoomController {
         this.roomService = roomService;
     }
 
-    @PostMapping(consumes = "multipart/form-data")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createRoom(
             @RequestParam("name") String name,
             @RequestParam("type") String type,
@@ -31,7 +32,8 @@ public class RoomController {
             @RequestParam("available") Boolean available,
             @RequestParam(value = "amenities", required = false) List<String> amenities,
             @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
-            @RequestParam(value = "galleryFiles", required = false) List<MultipartFile> galleryFiles) {
+            @RequestParam(value = "galleryFiles", required = false) MultipartFile[] galleryFiles) {
+
         Room room = new Room();
         room.setName(name);
         room.setType(type);
@@ -42,15 +44,12 @@ public class RoomController {
         room.setAvailable(available);
         room.setAmenities(amenities);
 
-        if (imageFile == null || imageFile.isEmpty()) {
-            return ResponseEntity.badRequest().body("Main image is required");
-        }
-
         Room savedRoom = roomService.saveRoom(room, imageFile, galleryFiles);
+
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRoom);
     }
 
-    @PutMapping(value = "/{id}", consumes = "multipart/form-data")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateRoom(
             @PathVariable String id,
             @RequestParam("name") String name,
@@ -63,8 +62,8 @@ public class RoomController {
             @RequestParam(value = "amenities", required = false) List<String> amenities,
             @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
             @RequestParam(value = "existingImage", required = false) String existingImage,
-            @RequestParam(value = "existingImages", required = false) List<String> existingImages,
-            @RequestParam(value = "galleryFiles", required = false) List<MultipartFile> galleryFiles) {
+            @RequestParam(value = "existingImages", required = false) String[] existingImages,
+            @RequestParam(value = "galleryFiles", required = false) MultipartFile[] galleryFiles) {
 
         Room room = roomService.getRoomById(id);
         room.setName(name);
@@ -76,7 +75,6 @@ public class RoomController {
         room.setAvailable(available);
         room.setAmenities(amenities);
 
-        // Call service to handle update while keeping existing images
         Room updatedRoom = roomService.updateRoom(room, imageFile, existingImage, existingImages, galleryFiles);
         return ResponseEntity.ok(updatedRoom);
     }

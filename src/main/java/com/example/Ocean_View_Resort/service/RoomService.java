@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 public class RoomService {
 
     private static final Pattern ROOM_ID_PATTERN = Pattern.compile("^ROOM-(\\d+)$");
-    private static final String UPLOAD_DIR = "uploads/rooms/";
+    // private static final String UPLOAD_DIR = "uploads/rooms/";
 
     private final RoomRepository roomRepository;
 
@@ -26,27 +26,38 @@ public class RoomService {
         this.roomRepository = roomRepository;
     }
 
-    public Room saveRoom(Room room, MultipartFile imageFile, List<MultipartFile> galleryFiles) {
+    public Room saveRoom(Room room, MultipartFile imageFile, MultipartFile[] galleryFiles) {
+
         room.setId(generateNextRoomId());
 
+        // Main image
         if (imageFile != null && !imageFile.isEmpty()) {
             room.setImage(saveFile(imageFile));
         }
 
+        // Gallery images
+        List<String> galleryUrls = new ArrayList<>();
+
         if (galleryFiles != null) {
-            List<String> galleryUrls = new ArrayList<>();
-            for (MultipartFile f : galleryFiles) {
-                if (!f.isEmpty())
-                    galleryUrls.add(saveFile(f));
+            for (MultipartFile file : galleryFiles) {
+                if (file != null && !file.isEmpty()) {
+                    galleryUrls.add(saveFile(file));
+                }
             }
-            room.setImages(galleryUrls);
         }
+
+        room.setImages(galleryUrls);
 
         return roomRepository.save(room);
     }
 
-    public Room updateRoom(Room room, MultipartFile imageFile, String existingImage,
-            List<String> existingImages, List<MultipartFile> galleryFiles) {
+    public Room updateRoom(
+            Room room,
+            MultipartFile imageFile,
+            String existingImage,
+            String[] existingImages,
+            MultipartFile[] galleryFiles) {
+
         // Handle main image
         if (imageFile != null && !imageFile.isEmpty()) {
             room.setImage(saveFile(imageFile));
@@ -54,16 +65,25 @@ public class RoomService {
             room.setImage(existingImage);
         }
 
-        // Handle gallery
+        // Handle gallery images
         List<String> gallery = new ArrayList<>();
-        if (existingImages != null)
-            gallery.addAll(existingImages);
-        if (galleryFiles != null) {
-            for (MultipartFile f : galleryFiles) {
-                if (!f.isEmpty())
-                    gallery.add(saveFile(f));
+
+        // keep existing images
+        if (existingImages != null) {
+            for (String img : existingImages) {
+                gallery.add(img);
             }
         }
+
+        // add new uploaded images
+        if (galleryFiles != null) {
+            for (MultipartFile file : galleryFiles) {
+                if (file != null && !file.isEmpty()) {
+                    gallery.add(saveFile(file));
+                }
+            }
+        }
+
         room.setImages(gallery);
 
         return roomRepository.save(room);
@@ -84,17 +104,25 @@ public class RoomService {
 
     private String saveFile(MultipartFile file) {
         try {
-            Path uploadPath = Paths.get(UPLOAD_DIR);
-            if (!Files.exists(uploadPath))
-                Files.createDirectories(uploadPath);
 
-            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path filePath = uploadPath.resolve(filename);
+            String uploadDir = System.getProperty("user.dir") + "/uploads/rooms/";
+            Path uploadPath = Paths.get(uploadDir);
+
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+
+            Path filePath = uploadPath.resolve(fileName);
+
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-            return "/" + UPLOAD_DIR + filename;
+            return "/uploads/rooms/" + fileName;
+
         } catch (IOException e) {
-            throw new RuntimeException("Failed to save file: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("File upload failed: " + e.getMessage());
         }
     }
 
